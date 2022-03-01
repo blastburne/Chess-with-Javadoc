@@ -1,0 +1,584 @@
+package Chess;
+
+
+import Chess.Pawn;
+import Chess.Bishop;
+import Chess.IChessPiece;
+import Chess.King;
+import Chess.Knight;
+import Chess.Queen;
+import Chess.Rook;
+
+import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
+
+
+public class ChessModel implements IChessModel {
+    
+    private IChessPiece[][] board;
+
+    public boolean AI = false;
+
+    private Player player;
+
+    private ArrayList<IChessPiece> pieceMove = new ArrayList<>();
+    private ArrayList<IChessPiece> deadPieces = new ArrayList<>();
+    private ArrayList<int[]> positionMove = new ArrayList<>();
+
+    /******************************************************************
+     * Default constructor.  Sets standard piece positions
+     *
+     */
+    public ChessModel() {
+        board = new IChessPiece[8][8];
+        player = Player.WHITE;
+        for (int i = 0; i < 8; i++) {
+            board[6][i] = new Pawn(Player.WHITE);
+            board[1][i] = new Pawn(Player.BLACK);
+        }
+        board[7][0] = new Rook(Player.WHITE);
+        board[7][1] = new Knight(Player.WHITE);
+        board[7][2] = new Bishop(Player.WHITE);
+        board[7][3] = new Queen(Player.WHITE);
+        board[7][4] = new King(Player.WHITE);
+        board[7][5] = new Bishop(Player.WHITE);
+        board[7][6] = new Knight(Player.WHITE);
+        board[7][7] = new Rook(Player.WHITE);
+
+        board[0][0] = new Rook(Player.BLACK);
+        board[0][1] = new Knight(Player.BLACK);
+        board[0][2] = new Bishop(Player.BLACK);
+        board[0][3] = new Queen(Player.BLACK);
+        board[0][4] = new King(Player.BLACK);
+        board[0][5] = new Bishop(Player.BLACK);
+        board[0][6] = new Knight(Player.BLACK);
+        board[0][7] = new Rook(Player.BLACK);
+    }
+
+    /******************************************************************
+     * After a game ends this method is called and the board resets
+     *
+     */
+    public void resetBoard(){
+        pieceMove = new ArrayList<>();
+        deadPieces = new ArrayList<>();
+        positionMove = new ArrayList<>();
+        board = new IChessPiece[8][8];
+        player = Player.WHITE;
+        for (int i = 0; i < 8; i++) {
+            board[6][i] = new Pawn(Player.WHITE);
+            board[1][i] = new Pawn(Player.BLACK);
+        }
+        board[7][0] = new Rook(Player.WHITE);
+        board[7][1] = new Knight(Player.WHITE);
+        board[7][2] = new Bishop(Player.WHITE);
+        board[7][3] = new Queen(Player.WHITE);
+        board[7][4] = new King(Player.WHITE);
+        board[7][5] = new Bishop(Player.WHITE);
+        board[7][6] = new Knight(Player.WHITE);
+        board[7][7] = new Rook(Player.WHITE);
+
+        board[0][0] = new Rook(Player.BLACK);
+        board[0][1] = new Knight(Player.BLACK);
+        board[0][2] = new Bishop(Player.BLACK);
+        board[0][3] = new Queen(Player.BLACK);
+        board[0][4] = new King(Player.BLACK);
+        board[0][5] = new Bishop(Player.BLACK);
+        board[0][6] = new Knight(Player.BLACK);
+        board[0][7] = new Rook(Player.BLACK);
+    }
+
+
+
+
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean isValidMove(Move move) {
+        boolean valid = false;
+
+        if (board[move.fromRow][move.fromColumn] != null)
+            if (board[move.fromRow][move.fromColumn].isValidMove(move,
+                    board) == true)
+                return true;
+
+        return valid;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public void undo() {
+        int arrLength = positionMove.size() - 1;
+        if (arrLength >= 0) {
+            int[] pos = positionMove.get(arrLength);
+            if (positionMove.get(arrLength)[2] == -1) {
+                if (positionMove.get(arrLength)[3] == -2) {
+                    setNextPlayer();
+                    setPiece(pos[0], pos[1],
+                            new King(currentPlayer()));
+                    board[pos[0]][pos[1] + 1] = null;
+                    board[pos[0]][pos[1] + 2] = null;
+                    setPiece(pos[0], pos[1] + 3,
+                            new Rook(currentPlayer()));
+                    setNextPlayer();
+                } else {
+                    setNextPlayer();
+                    setPiece(pos[0], pos[1],
+                            new King(currentPlayer()));
+                    board[pos[0]][pos[1] - 1] = null;
+                    board[pos[0]][pos[1] - 2] = null;
+                    board[pos[0]][pos[1] - 3] = null;
+                    setPiece(pos[0], pos[1] - 4,
+                            new Rook(currentPlayer()));
+                    setNextPlayer();
+                }
+            } else {
+                setPiece(pos[0], pos[1], pieceMove.get(arrLength));
+                board[pos[2]][pos[3]] = deadPieces.get(arrLength);
+            }
+            positionMove.remove(arrLength);
+            pieceMove.remove(arrLength);
+            deadPieces.remove(arrLength);
+            setNextPlayer();
+        }
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean promote(Move move) {
+        if (currentPlayer() == Player.WHITE &&
+                board[move.fromRow]
+                        [move.fromColumn].type().equals("Pawn")
+                && move.toRow == 0)
+            return true;
+        if (currentPlayer() == Player.BLACK &&
+                board[move.fromRow]
+                        [move.fromColumn].type().equals("Pawn")
+                && move.toRow == board.length - 1)
+            return true;
+        return false;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean castle(Move move) {
+        // trying to castle?
+        if ((move.toRow != board.length - 1 && currentPlayer()
+                != Player.BLACK) || (move.toRow != 0) &&
+                currentPlayer() != Player.WHITE)
+            return false;
+        else if (move.toColumn != 2 && move.toColumn != 6)
+            return false;
+        // not running over any pieces
+        int xDir = 1;
+        int tempFromCol = move.fromColumn;
+        if (move.fromColumn > move.toColumn)
+            xDir = -1;
+        tempFromCol += xDir;
+        while (tempFromCol != 0 && tempFromCol != board.length - 1) {
+            if (board[move.fromRow][tempFromCol] != null)
+                return false;
+            tempFromCol += xDir;
+        }
+        // King has not moved and is not in check
+        if ((board[move.fromRow][move.fromColumn].type().equals("King")
+                && !((King) board[move.fromRow]
+                [move.fromColumn]).hasMoved())
+                && !inCheck(currentPlayer())) {
+            // rook has not moved
+            if (xDir == -1 && board[move.fromRow][0] != null
+                    && board[move.fromRow][0].type().equals("Rook")
+                    && !((Rook) board[move.fromRow][0]).hasMoved()) {
+                deadPieces.add(board[move.toRow][move.toColumn]);
+                board[move.toRow][move.toColumn] =
+                        board[move.fromRow][move.fromColumn];
+                pieceMove.add(board[move.fromRow][move.fromColumn]);
+                positionMove.add(new int[]{move.fromRow,
+                        move.fromColumn, -1, -1});
+                board[move.fromRow][move.fromColumn] = null;
+                board[move.toRow][move.toColumn - xDir] =
+                        new Rook(currentPlayer());
+                board[move.toRow][0] = null;
+                return true;
+            } else if (xDir == 1 && board[move.fromRow]
+                    [board.length - 1]
+                    != null && board[move.fromRow]
+                    [board.length - 1].type().equals("Rook")
+                    && !((Rook) board[move.fromRow]
+                    [board.length - 1]).hasMoved()) {
+                deadPieces.add(board[move.toRow]
+                        [move.toColumn + xDir]);
+                board[move.toRow][move.toColumn] = board[move.fromRow]
+                        [move.fromColumn];
+                pieceMove.add(board[move.fromRow][move.fromColumn]);
+                positionMove.add(new int[]
+                        {move.fromRow, move.fromColumn, -1, -2});
+                board[move.fromRow][move.fromColumn] = null;
+                board[move.toRow][move.toColumn - xDir] =
+                        new Rook(currentPlayer());
+                board[move.toRow][board.length - 1] = null;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public void move(Move move, int n) {
+
+        deadPieces.add(board[move.toRow][move.toColumn]);
+        if (n >= 0 && currentPlayer() == Player.WHITE) {
+            if (n == 0)
+                board[move.toRow][move.toColumn] =
+                        new Queen(Player.WHITE);
+            if (n == 1)
+                board[move.toRow][move.toColumn] =
+                        new Bishop(Player.WHITE);
+            if (n == 2)
+                board[move.toRow][move.toColumn] =
+                        new Knight(Player.WHITE);
+            if (n == 3)
+                board[move.toRow][move.toColumn] =
+                        new Rook(Player.WHITE);
+        } else if (n >= 0 && currentPlayer() == Player.BLACK) {
+            if (n == 0)
+                board[move.toRow][move.toColumn] =
+                        new Queen(Player.BLACK);
+            if (n == 1)
+                board[move.toRow][move.toColumn] =
+                        new Bishop(Player.BLACK);
+            if (n == 2)
+                board[move.toRow][move.toColumn] =
+                        new Knight(Player.BLACK);
+            if (n == 3)
+                board[move.toRow][move.toColumn] =
+                        new Rook(Player.BLACK);
+        } else {
+            board[move.toRow][move.toColumn] =
+                    board[move.fromRow][move.fromColumn];
+        }
+        pieceMove.add(board[move.fromRow][move.fromColumn]);
+        positionMove.add(new int[]{
+                move.fromRow, move.fromColumn,
+                move.toRow, move.toColumn});
+        board[move.fromRow][move.fromColumn] = null;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public void testMove(Move move, IChessPiece[][] temp) {
+        temp[move.toRow][move.toColumn] =
+                temp[move.fromRow][move.fromColumn];
+        temp[move.fromRow][move.fromColumn] = null;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean noKing(Player p ){
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (board[row][col] != null &&
+                        board[row][col].type().equals("King") &&
+                        board[row][col].player() == p) {
+                    return false;
+                }
+
+            }
+        }
+        return  true;
+    }
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean isComplete(Player p){
+        int kingRow = -1;
+        int kingCol = -1;
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (board[row][col] != null &&
+                        board[row][col].type().equals("King") &&
+                        board[row][col].player() == p) {
+                    kingRow = row;
+                    kingCol = col;
+                    break;
+                }
+
+            }
+        }
+        ArrayList<Move> moves = ((King) board[kingRow]
+                [kingCol]).possibleMoves(kingRow,kingCol, board);
+        for (Move move: moves) {
+            move(move, -1);
+            setNextPlayer();
+            if(!inCheck(p)){
+                undo();
+                return false;
+            }
+        }
+        undo();
+        return true;
+    }
+
+    /******************************************************************
+     * 
+     * @param 
+     * @param 
+     */
+    public boolean inCheck(Player p) {
+        int kingRow = -1;
+        int kingCol = -1;
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (board[row][col] != null &&
+                        board[row][col].type().equals("King")
+                        && board[row][col].player() == p) {
+                    kingRow = row;
+                    kingCol = col;
+                    break;
+                }
+            }
+        }
+
+        for (int row = 0; row < numRows(); row++)
+            for (int col = 0; col < numColumns(); col++)
+                if (board[row][col] != null && board[row]
+                        [col].player() != p) {
+                    if (board[row][col].isValidMove(
+                            new Move(row, col, kingRow, kingCol),
+                            board))
+                        return true;
+                }
+        return false;
+    }
+
+    /******************************************************************
+     * Getter method for the player whose turn it is
+     * @return the player whos turn it is
+     */
+    public Player currentPlayer() {
+        return player;
+    }
+
+    /******************************************************************
+     *
+     * @return the number of rows on the chess board
+     */
+    public int numRows() {
+        return 8;
+    }
+
+    /******************************************************************
+     * returns the number of columns on the chee board
+     * @return
+     */
+    public int numColumns() {
+        return 8;
+    }
+
+    /******************************************************************
+     * returns the chess piece at a specific position on the board
+     * @param row row on the board in question
+     * @param column column on the board in question
+     * @return the chess piece at the row and column on the board
+     */
+    public IChessPiece pieceAt(int row, int column) {
+        return board[row][column];
+    }
+
+    /******************************************************************
+     * sets the next player after a move has been made
+     */
+    public void setNextPlayer() {
+        player = player.next();
+    }
+
+    /******************************************************************
+     * sets a brand new piece ont he board at a specified row and
+     * column
+     * @param row row to put the piece in
+     * @param column column to put the piece in
+     * @param piece what king of piece to be placed at specified
+     *              position
+     */
+    public void setPiece(int row, int column, IChessPiece piece) {
+        board[row][column] = piece;
+    }
+
+    /******************************************************************
+     * Rates a potential move based on what piece will be taken by
+     * the landing row and column.  Higher number if taking a more
+     * valuable enemy piece.
+     * @param moves the move to be rated
+     * @param temp the board that is used to determine other pieces
+     *             positions
+     * @return Higher number is a better move, lower number is
+     * a worse move
+     */
+    public int rateMove(Move moves, IChessPiece[][] temp) {
+        if (temp[moves.toRow][moves.toColumn] == null) {
+            return 0;
+        } else if (temp[moves.toRow]
+                [moves.toColumn].type().equals("Pawn")) {
+            return 2;
+        } else if ((temp[moves.toRow]
+                [moves.toColumn].type().equals("Knight") ||
+                temp[moves.toRow]
+                        [moves.toColumn].type().equals("Bishop"))) {
+            return 3;
+        } else if (temp[moves.toRow]
+                [moves.toColumn].type().equals("Rook")) {
+            return 5;
+
+        } else if (temp[moves.toRow]
+                [moves.toColumn].type().equals("Queen")) {
+            return 9;
+        } else {
+            return 15;
+        }
+    }
+
+    /******************************************************************
+     * AI uses to deep copy the board and all of its pieces
+     *
+     * @return copy of current chess board
+     */
+    public IChessPiece[][] copyBoard() {
+        IChessPiece[][] temp = new IChessPiece[8][8];
+        for (int row = 0; row < numRows(); row++) {
+            for (int col = 0; col < numColumns(); col++) {
+                if (board[row][col] != null &&
+                        board[row][col].player() == Player.WHITE) {
+                    if (board[row][col].type().equals("Pawn"))
+                        temp[row][col] = new Pawn(Player.WHITE);
+                    if (board[row][col].type().equals("Bishop"))
+                        temp[row][col] = new Bishop(Player.WHITE);
+                    if (board[row][col].type().equals("King"))
+                        temp[row][col] = new King(Player.WHITE);
+                    if (board[row][col].type().equals("Knight"))
+                        temp[row][col] = new Knight(Player.WHITE);
+                    if (board[row][col].type().equals("Queen"))
+                        temp[row][col] = new Queen(Player.WHITE);
+                    if (board[row][col].type().equals("Rook"))
+                        temp[row][col] = new Rook(Player.WHITE);
+                } else if (board[row][col] != null &&
+                        board[row][col].player() == Player.BLACK) {
+                    if (board[row][col].type().equals("Pawn"))
+                        temp[row][col] = new Pawn(Player.BLACK);
+                    if (board[row][col].type().equals("Bishop"))
+                        temp[row][col] = new Bishop(Player.BLACK);
+                    if (board[row][col].type().equals("King"))
+                        temp[row][col] = new King(Player.BLACK);
+                    if (board[row][col].type().equals("Knight"))
+                        temp[row][col] = new Knight(Player.BLACK);
+                    if (board[row][col].type().equals("Queen"))
+                        temp[row][col] = new Queen(Player.BLACK);
+                    if (board[row][col].type().equals("Rook"))
+                        temp[row][col] = new Rook(Player.BLACK);
+                }
+            }
+        }
+        return temp;
+    }
+
+    /******************************************************************
+     * AI to play against the user
+     */
+    public void AI() {
+        int bestMoveScore;
+        Move bestMove = new Move(0, 0, 5, 5);
+        ArrayList<Move> roundOneMoves = new ArrayList<>();
+        ArrayList<Integer> roundOneMoveRating = new ArrayList<>();
+        ArrayList<Integer> bestCounter = new ArrayList<>();
+
+        ArrayList<Integer> roundTwoMoveRating = new ArrayList<>();
+        // gets all AI's possible moves
+        for (int row = 0; row < numRows(); row++) {
+            for (int col = 0; col < numColumns(); col++) {
+                if (board[row][col] != null &&
+                        board[row][col].player() == currentPlayer()) {
+                    roundOneMoves.addAll(board[row]
+                            [col].possibleMoves(row, col, board));
+                }
+            }
+        }
+        // rate AI moves
+        for (int i = 0; i < roundOneMoves.size(); i++) {
+            int max = -1;
+            ArrayList<Move> roundTwoMoves = new ArrayList<>();
+            roundOneMoveRating.add(rateMove(roundOneMoves.get(i),
+                    board));
+            move(roundOneMoves.get(i), -1);
+            setNextPlayer();
+            for (int row = 0; row < numRows(); row++) {
+                for (int col = 0; col < numColumns(); col++) {
+                    if (board[row][col] != null &&
+                            board[row][col].player() ==
+                                    currentPlayer()) {
+                        roundTwoMoves.addAll(board[row]
+                                [col].possibleMoves(row, col, board));
+                    }
+                }
+            }
+            for(int h = 0; h < roundTwoMoves.size();h++){
+                int rated = rateMove(roundTwoMoves.get(h), board);
+                if (rated > max){
+                    max = rated;
+                }
+            }
+            bestCounter.add(max);
+            undo();
+        }
+        bestMoveScore = roundOneMoveRating.get(0) - bestCounter.get(0);
+        for(int p = 0; p < roundOneMoveRating.size();p++){
+            System.out.print(roundOneMoveRating.get(p) -
+                    bestCounter.get(p));
+            System.out.print("_");
+            if(roundOneMoveRating.get(p) - bestCounter.get(p) >=
+                    bestMoveScore){
+                bestMoveScore = roundOneMoveRating.get(p) -
+                        bestCounter.get(p);
+                bestMove = roundOneMoves.get(p);
+            }
+        }
+        System.out.println();
+        System.out.println(bestMoveScore);
+        move(bestMove,-1);
+    }
+
+	@Override
+	public boolean isComplete() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void move(Move move) {
+		// TODO Auto-generated method stub
+		
+	}
+
+}

@@ -1,0 +1,54 @@
+package Chess;
+
+
+import Chess.Player;
+import Chess.Move;
+
+import java.util.ArrayList;
+
+public class Knight extends ChessPiece {
+  
+    public Knight(Player player) {
+        super(player);
+    }
+ 
+    public String type() {
+        return "Knight";
+    }
+
+ 
+    public boolean isValidMove(Move move, IChessPiece[][] board){
+        if(!super.isValidMove(move, board))
+            return false;
+        int x = move.fromColumn;
+        int x2 = move.toColumn;
+        int y = move.fromRow;
+        int y2 = move.toRow;
+
+        if(Math.abs(x - x2) == 2 && Math.abs(y - y2) == 1)
+            return true;
+        else if(Math.abs(x - x2) == 1 && Math.abs(y - y2) == 2)
+            return true;
+        return false;
+
+    }
+
+    public ArrayList<Move> possibleMoves(int currentRow,
+                                         int currentCol,
+                                         IChessPiece[][] board) {
+        ArrayList<Move> moves = new ArrayList<>();
+        int[][] changes = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},
+                {1,-2},{-1,2},{-1,-2}};
+        for(int i = 0; i < changes.length; i++){
+            Move checkMove = new Move(currentRow, currentCol,
+                    currentRow + changes[i][0],
+                    currentCol + changes[i][1]);
+            if(isValidMove(checkMove, board)){
+                moves.add(checkMove);
+            }
+        }
+
+        return moves;
+    }
+
+}

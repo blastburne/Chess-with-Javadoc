@@ -1,0 +1,119 @@
+package Chess;
+
+import java.util.ArrayList;
+
+public class Rook extends ChessPiece {
+
+	/* true if rook has moved */
+	private boolean hasMoved = false;
+
+	/******************************************************************
+	 * Constructor that calls the ChessPiece constructor
+	 * 
+	 * @param player Player that owns the piece
+	 */
+	public Rook(Player player) {
+		super(player);
+	}
+
+	/******************************************************************
+	 * returns that the piece is a bishop
+	 * 
+	 * @return "Rook"
+	 */
+	public String type() {
+		return "Rook";
+	}
+
+	/******************************************************************
+	 * Returns if the Rook has moved
+	 * 
+	 * @return true if Rook has moved
+	 */
+	public boolean hasMoved() {
+		return hasMoved;
+	}
+
+	/******************************************************************
+	 * Helper method for valid move to. Verifies if the pieces jumped
+	 * 
+	 * @param fromCol initial column
+	 * @param toCol   ending column 
+	 * @param fromRow initial row
+	 * @param toRow   ending row 
+	 * @param board   chess board contains all piece positions
+	 * @return true if the move does not pass over, false otherwise
+	 */
+	public boolean noJumps(int fromCol, int toCol, int fromRow, int toRow, IChessPiece[][] board) {
+		int x, y;
+		if (fromCol > toCol) {
+			x = -1;
+			y = 0;
+		} else if (fromCol < toCol) {
+			x = 1;
+			y = 0;
+		} else if (fromRow < toRow) {
+			x = 0;
+			y = 1;
+		} else {
+			x = 0;
+			y = -1;
+		}
+		fromCol += x;
+		fromRow += y;
+
+		while (toCol != fromCol || toRow != fromRow) {
+			if (board[fromRow][fromCol] != null) {
+				return false;
+			}
+			fromCol += x;
+			fromRow += y;
+		}
+		return true;
+	}
+
+	/******************************************************************
+	 * Determines if the move is valid
+	 * 
+	 * @param move the move for a Rook
+	 * @param board the board that is being played
+	 * @return true if move is valid
+	 */
+	public boolean isValidMove(Move move, IChessPiece[][] board) {
+		if (!super.isValidMove(move, board)) {
+			return false;
+		}
+		if ((move.toRow - move.fromRow == 0 || move.fromColumn - move.toColumn == 0)
+				&& noJumps(move.fromColumn, move.toColumn, move.fromRow, move.toRow, board)) {
+			hasMoved = true;
+			return true;
+		}
+		return false;
+
+	}
+
+	/******************************************************************
+	 * Returns a list of all possible moves that the Rook could make
+	 * 
+	 * @param currentRow row where the piece is located
+	 * @param currentCol row where the piece is located
+	 * @param board      board with other piece information
+	 * @return an array of all possible moves
+	 */
+	public ArrayList<Move> possibleMoves(int currentRow, int currentCol, IChessPiece[][] board) {
+		ArrayList<Move> moves = new ArrayList<>();
+		for (int i = 0; i < board.length; i++) {
+			Move checkMoveHorizontal = new Move(currentRow, currentCol, currentRow, i);
+			Move checkMoveVertical = new Move(currentRow, currentCol, i, currentCol);
+			if (isValidMove(checkMoveHorizontal, board)) {
+				moves.add(checkMoveHorizontal);
+			}
+			if (isValidMove(checkMoveVertical, board)) {
+				moves.add(checkMoveVertical);
+			}
+		}
+
+		return moves;
+	}
+
+}
